@@ -1,1 +1,405 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EpicAI.ir | هوش مصنوعی</title>
 
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: Tahoma, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(0, 174, 255, .25), transparent 30%),
+        radial-gradient(circle at 85% 85%, rgba(0, 92, 255, .22), transparent 32%),
+        linear-gradient(135deg, #eef8ff, #ffffff);
+      color: #102a43;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .app {
+      width: min(100%, 980px);
+      height: min(900px, 92vh);
+      min-height: 560px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.9);
+      border-radius: 28px;
+      background: rgba(255,255,255,.82);
+      box-shadow: 0 25px 80px rgba(0, 90, 190, .20);
+      backdrop-filter: blur(20px);
+    }
+
+    .header {
+      min-height: 82px;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #fff;
+      background: linear-gradient(135deg, #006eff, #00b8ff);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 50px;
+      height: 50px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      background: #fff;
+      color: #0878ff;
+      font-weight: 900;
+      font-size: 19px;
+      box-shadow: 0 7px 22px rgba(0,0,0,.16);
+    }
+
+    .brand h1 {
+      font-size: 21px;
+      margin-bottom: 4px;
+    }
+
+    .brand p {
+      font-size: 11px;
+      opacity: .9;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-left: 5px;
+      border-radius: 50%;
+      background: #7cffb2;
+      box-shadow: 0 0 12px #7cffb2;
+    }
+
+    .header-star {
+      font-size: 25px;
+    }
+
+    .chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px;
+    }
+
+    .chat::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .chat::-webkit-scrollbar-thumb {
+      border-radius: 20px;
+      background: #7bbcff;
+    }
+
+    .message {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 22px;
+      animation: show .25s ease;
+    }
+
+    @keyframes show {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .avatar {
+      width: 43px;
+      height: 43px;
+      min-width: 43px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      font-size: 19px;
+    }
+
+    .ai-avatar {
+      color: #fff;
+      background: linear-gradient(135deg, #006eff, #00b8ff);
+    }
+
+    .user-avatar {
+      color: #0878ff;
+      background: #e4f3ff;
+    }
+
+    .bubble {
+      max-width: 75%;
+      padding: 14px 18px;
+      border-radius: 18px;
+      line-height: 1.9;
+      font-size: 15px;
+    }
+
+    .ai-message .bubble {
+      background: #fff;
+      border: 1px solid #e2efff;
+      border-top-right-radius: 5px;
+      box-shadow: 0 6px 22px rgba(0,100,200,.07);
+    }
+
+    .user-message {
+      direction: ltr;
+    }
+
+    .user-message .bubble {
+      direction: rtl;
+      color: #fff;
+      background: linear-gradient(135deg, #006eff, #009fe8);
+      border-top-left-radius: 5px;
+      box-shadow: 0 8px 22px rgba(0,110,255,.18);
+    }
+
+    .input-area {
+      padding: 17px 22px 13px;
+      border-top: 1px solid #e2efff;
+      background: rgba(255,255,255,.92);
+    }
+
+    .input-box {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      padding: 7px 8px 7px 12px;
+      background: #fff;
+      border: 2px solid #dcecff;
+      border-radius: 19px;
+      transition: .25s;
+    }
+
+    .input-box:focus-within {
+      border-color: #008cff;
+      box-shadow: 0 0 0 4px rgba(0,140,255,.09);
+    }
+
+    textarea {
+      flex: 1;
+      min-height: 44px;
+      max-height: 110px;
+      resize: none;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #102a43;
+      font: 15px Tahoma, Arial, sans-serif;
+      line-height: 1.7;
+      padding: 9px;
+    }
+
+    textarea::placeholder {
+      color: #9ab0c5;
+    }
+
+    .send {
+      width: 50px;
+      height: 50px;
+      border: 0;
+      border-radius: 15px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #006eff, #00b8ff);
+      font-size: 21px;
+      transition: .2s;
+    }
+
+    .send:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,110,255,.30);
+    }
+
+    .send:active {
+      transform: scale(.94);
+    }
+
+    .footer {
+      margin-top: 7px;
+      text-align: center;
+      color: #8ba4bb;
+      font-size: 10px;
+    }
+
+    @media (max-width: 650px) {
+      body {
+        padding: 0;
+      }
+
+      .app {
+        width: 100%;
+        height: 100vh;
+        min-height: 0;
+        border-radius: 0;
+      }
+
+      .header {
+        min-height: 70px;
+        padding: 10px 15px;
+      }
+
+      .brand-icon {
+        width: 43px;
+        height: 43px;
+      }
+
+      .brand h1 {
+        font-size: 18px;
+      }
+
+      .chat {
+        padding: 18px 12px;
+      }
+
+      .bubble {
+        max-width: 84%;
+        font-size: 14px;
+      }
+
+      .input-area {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">AI</div>
+        <div>
+          <h1>EpicAI.ir</h1>
+          <p><span class="dot"></span>هوش مصنوعی آنلاین</p>
+        </div>
+      </div>
+      <div class="header-star">✨</div>
+    </header>
+
+    <main class="chat" id="chat">
+      <div class="message ai-message">
+        <div class="avatar ai-avatar">🤖</div>
+        <div class="bubble">
+          سلام! 👋<br>
+          به <b>EpicAI.ir</b> خوش اومدی 🚀<br>
+          چه کاری می‌تونم برات انجام بدم؟
+        </div>
+      </div>
+    </main>
+
+    <section class="input-area">
+      <div class="input-box">
+        <textarea id="messageInput" rows="1" placeholder="پیامت رو برای EpicAI بنویس..."></textarea>
+        <button class="send" id="sendBtn" type="button">➤</button>
+      </div>
+      <div class="footer">EpicAI.ir • هوش مصنوعی</div>
+    </section>
+
+  </div>
+
+  <script>
+    const input = document.getElementById("messageInput");
+    const chat = document.getElementById("chat");
+    const sendBtn = document.getElementById("sendBtn");
+
+    function addMessage(text, type) {
+      const message = document.createElement("div");
+      message.className = "message " + (type === "user" ? "user-message" : "ai-message");
+
+      message.innerHTML = `
+        <div class="avatar ${type === "user" ? "user-avatar" : "ai-avatar"}">
+          ${type === "user" ? "👤" : "🤖"}
+        </div>
+        <div class="bubble">${text}</div>
+      `;
+
+      chat.appendChild(message);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+
+      addMessage(text, "user");
+      input.value = "";
+      input.style.height = "44px";
+
+      addMessage("در حال فکر کردن... 🤖", "ai");
+
+      const messages = chat.querySelectorAll(".message");
+      const loadingMessage = messages[messages.length - 1];
+
+      try {
+        const response = await fetch("http://127.0.0.1:5000/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: text
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const data = await response.json();
+
+        loadingMessage.remove();
+
+        if (!data.reply) {
+          throw new Error("API پاسخ reply ندارد.");
+        }
+
+        addMessage(
+          String(data.reply).replace(/\n/g, "<br>"),
+          "ai"
+        );
+
+      } catch (error) {
+        console.error("EpicAI API Error:", error);
+
+        loadingMessage.remove();
+
+        addMessage(
+          "❌ اتصال به سرور EpicAI برقرار نشد.<br>" +
+          "<small>مطمئن شو ai.py در حال اجراست.</small>",
+          "ai"
+        );
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    input.addEventListener("input", () => {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 110) + "px";
+    });
+  </script>
+</body>
+</html>
