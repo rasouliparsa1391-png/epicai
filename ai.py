@@ -50,7 +50,7 @@ def chat():
         return jsonify({"reply": f"❌ خطا در ارتباط با هوش مصنوعی: {str(e)}"}), 500
 
 # اصلاح شد: اضافه شدن __ قبل و بعد از name
-if name == "main":
+if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 10000))
