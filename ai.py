@@ -1,63 +1,26 @@
-if not email or not password:
-            return jsonify({
-                "success": False,
-                "message": "ایمیل و رمز عبور را وارد کنید."
-            }), 400
-
+def init_db():
+    try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        cur.execute(
-            """
-            SELECT id, email, password_hash
-            FROM users
-            WHERE email = %s
-            """,
-            (email,)
-        )
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-        user = cur.fetchone()
-
+        conn.commit()
         cur.close()
         conn.close()
 
-        if not user:
-            return jsonify({
-                "success": False,
-                "message": "ایمیل یا رمز عبور اشتباه است."
-            }), 401
-
-        user_id, user_email, password_hash = user
-
-        # بررسی رمز عبور
-        if not check_password_hash(password_hash, password):
-            return jsonify({
-                "success": False,
-                "message": "ایمیل یا رمز عبور اشتباه است."
-            }), 401
-
-        # ذخیره اطلاعات در Session
-        session["user_id"] = user_id
-        session["email"] = user_email
-
-        return jsonify({
-            "success": True,
-            "message": "با موفقیت وارد شدید.",
-            "user": {
-                "id": user_id,
-                "email": user_email
-            }
-        })
+        print("Database connected successfully.")
+        print("Users table is ready.")
 
     except Exception as e:
-        print("Login Error:", e)
-
-        return jsonify({
-            "success": False,
-            "message": "خطا در ورود."
-        }), 500
-
-
+        print("Database Error:", e)
 # -----------------------------
 # خروج
 # -----------------------------
@@ -143,7 +106,7 @@ def chat():
 init_db()
 
 
-if name == "main":
+if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 10000))
