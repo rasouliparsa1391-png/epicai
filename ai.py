@@ -8,7 +8,7 @@ import os
 
 load_dotenv()
 
-app = Flask(name)
+app = Flask(__name__)
 
 app.secret_key = os.getenv("SECRET_KEY", "change-this-secret-key")
 
