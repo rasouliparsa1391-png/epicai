@@ -1,3 +1,14 @@
+from flask import Flask, request, jsonify, render_template, session
+from flask_cors import CORS
+from dotenv import load_dotenv
+from openai import OpenAI
+from werkzeug.security import generate_password_hash, check_password_hash
+import psycopg2
+import os
+
+load_dotenv()
+
+app = Flask(__name__)
 conn = get_db_connection()
         cur = conn.cursor()
 
