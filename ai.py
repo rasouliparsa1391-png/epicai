@@ -1,73 +1,97 @@
-from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
-from dotenv import load_dotenv
-from openai import OpenAI
-import psycopg2
-import os
+if not email or not password:
+            return jsonify({
+                "success": False,
+                "message": "ایمیل و رمز عبور را وارد کنید."
+            }), 400
 
-# بارگذاری متغیرهای محیطی
-load_dotenv()
-
-app = Flask(__name__)
-CORS(app)
-
-# -----------------------------
-# اتصال به GapGPT
-# -----------------------------
-client = OpenAI(
-    api_key=os.getenv("GAPGPT_API_KEY"),
-    base_url="https://api.gapgpt.app/v1"
-)
-
-
-# -----------------------------
-# اتصال به دیتابیس Supabase
-# -----------------------------
-def get_db_connection():
-    return psycopg2.connect(
-        os.getenv("DATABASE_URL"),
-        sslmode="require"
-    )
-
-
-# -----------------------------
-# ساخت جدول کاربران
-# -----------------------------
-def init_db():
-    try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+        cur.execute(
+            """
+            SELECT id, email, password_hash
+            FROM users
+            WHERE email = %s
+            """,
+            (email,)
+        )
 
-        conn.commit()
+        user = cur.fetchone()
+
         cur.close()
         conn.close()
 
-        print("Database connected successfully.")
-        print("Users table is ready.")
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "ایمیل یا رمز عبور اشتباه است."
+            }), 401
+
+        user_id, user_email, password_hash = user
+
+        # بررسی رمز عبور
+        if not check_password_hash(password_hash, password):
+            return jsonify({
+                "success": False,
+                "message": "ایمیل یا رمز عبور اشتباه است."
+            }), 401
+
+        # ذخیره اطلاعات در Session
+        session["user_id"] = user_id
+        session["email"] = user_email
+
+        return jsonify({
+            "success": True,
+            "message": "با موفقیت وارد شدید.",
+            "user": {
+                "id": user_id,
+                "email": user_email
+            }
+        })
 
     except Exception as e:
-        print("Database Error:", e)
+        print("Login Error:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "خطا در ورود."
+        }), 500
 
 
 # -----------------------------
-# صفحه اصلی
+# خروج
 # -----------------------------
-@app.route("/")
-def index():
-    return render_template("index.html")
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+
+    return jsonify({
+        "success": True,
+        "message": "با موفقیت خارج شدید."
+    })
 
 
 # -----------------------------
-# تست چت
+# بررسی وضعیت ورود
+# -----------------------------
+@app.route("/me", methods=["GET"])
+def me():
+    if "user_id" not in session:
+        return jsonify({
+            "logged_in": False
+        })
+
+    return jsonify({
+        "logged_in": True,
+        "user": {
+            "id": session["user_id"],
+            "email": session["email"]
+        }
+    })
+
+
+# -----------------------------
+# چت هوش مصنوعی
 # -----------------------------
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -76,14 +100,19 @@ def chat():
         user_message = data.get("message", "").strip()
 
         if not user_message:
-            return jsonify({"reply": "لطفاً یک پیام بنویس."}), 400
+            return jsonify({
+                "reply": "لطفاً یک پیام بنویس."
+            }), 400
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
-                    "content": "تو دستیار هوش مصنوعی EpicAI.ir هستی. فارسی، دوستانه و مفید پاسخ بده."
+                    "content": (
+                        "تو دستیار هوش مصنوعی EpicAI.ir هستی. "
+                        "فارسی، دوستانه و مفید پاسخ بده."
+                    )
                 },
                 {
                     "role": "user",
@@ -94,21 +123,27 @@ def chat():
 
         answer = response.choices[0].message.content
 
-        return jsonify({"reply": answer})
+        return jsonify({
+            "reply": answer
+        })
 
     except Exception as e:
         print("GapGPT API Error:", e)
+
         return jsonify({
-            "reply": f"❌ خطا در ارتباط با هوش مصنوعی: {str(e)}"
+            "reply": "❌ خطا در ارتباط با هوش مصنوعی."
         }), 500
 
 
 # -----------------------------
 # اجرای برنامه
 # -----------------------------
-if __name__ == "__main__":
-    init_db()
 
+# برای Gunicorn هم جدول را ایجاد می‌کنیم
+init_db()
+
+
+if name == "main":
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 10000))
