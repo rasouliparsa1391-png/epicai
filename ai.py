@@ -1,47 +1,63 @@
-from flask import Flask, request, jsonify, render_template, session
-from flask_cors import CORS
-from dotenv import load_dotenv
-from openai import OpenAI
-from werkzeug.security import generate_password_hash, check_password_hash
-import psycopg2
-import os
-
-load_dotenv()
-
-app = Flask(__name__)
-
-app.secret_key = os.getenv("SECRET_KEY", "change-this-secret-key")
-
-CORS(app, supports_credentials=True)
-def init_db():
-    try:
-        conn = get_db_connection()
+conn = get_db_connection()
         cur = conn.cursor()
 
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+        cur.execute(
+            """
+            SELECT id, email, password_hash
+            FROM users
+            WHERE email = %s
+            """,
+            (email,)
+        )
 
-        conn.commit()
+        user = cur.fetchone()
+
         cur.close()
         conn.close()
 
-        print("Database connected successfully.")
-        print("Users table is ready.")
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "ایمیل یا رمز عبور اشتباه است."
+            }), 401
+
+        user_id, user_email, password_hash = user
+
+        if not check_password_hash(password_hash, password):
+            return jsonify({
+                "success": False,
+                "message": "ایمیل یا رمز عبور اشتباه است."
+            }), 401
+
+        session["user_id"] = user_id
+        session["email"] = user_email
+
+        return jsonify({
+            "success": True,
+            "message": "با موفقیت وارد شدید.",
+            "user": {
+                "id": user_id,
+                "email": user_email
+            }
+        })
 
     except Exception as e:
-        print("Database Error:", e)
+
+        print("Login Error:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "خطا در ورود."
+        }), 500
+
+
 # -----------------------------
 # خروج
 # -----------------------------
-app = Flask(__name__)
+
 @app.route("/logout", methods=["POST"])
 def logout():
+
     session.clear()
 
     return jsonify({
@@ -53,9 +69,12 @@ def logout():
 # -----------------------------
 # بررسی وضعیت ورود
 # -----------------------------
+
 @app.route("/me", methods=["GET"])
 def me():
+
     if "user_id" not in session:
+
         return jsonify({
             "logged_in": False
         })
@@ -72,20 +91,31 @@ def me():
 # -----------------------------
 # چت هوش مصنوعی
 # -----------------------------
+
 @app.route("/chat", methods=["POST"])
 def chat():
+
     try:
+
         data = request.get_json()
-        user_message = data.get("message", "").strip()
+
+        user_message = data.get(
+            "message",
+            ""
+        ).strip()
 
         if not user_message:
+
             return jsonify({
                 "reply": "لطفاً یک پیام بنویس."
             }), 400
 
         response = client.chat.completions.create(
+
             model="gpt-4o-mini",
+
             messages=[
+
                 {
                     "role": "system",
                     "content": (
@@ -93,10 +123,12 @@ def chat():
                         "فارسی، دوستانه و مفید پاسخ بده."
                     )
                 },
+
                 {
                     "role": "user",
                     "content": user_message
                 }
+
             ]
         )
 
@@ -107,6 +139,7 @@ def chat():
         })
 
     except Exception as e:
+
         print("GapGPT API Error:", e)
 
         return jsonify({
@@ -115,15 +148,24 @@ def chat():
 
 
 # -----------------------------
-# اجرای برنامه
+# ساخت دیتابیس
 # -----------------------------
 
-# برای Gunicorn هم جدول را ایجاد می‌کنیم
 init_db()
 
 
-if __name__ == "__main__":
+# -----------------------------
+# اجرای برنامه
+# -----------------------------
+
+if __name__4 == "__main__":
+
     app.run(
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000))
+        port=int(
+            os.environ.get(
+                "PORT",
+                10000
+            )
+        )
     )
