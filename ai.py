@@ -8,7 +8,7 @@ import os
 # بارگذاری متغیرهای محیطی
 load_dotenv()
 
-app = Flask(name)
+app = Flask(__name__)
 CORS(app)
 
 # -----------------------------
