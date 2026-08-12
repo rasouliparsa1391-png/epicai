@@ -24,6 +24,7 @@ def init_db():
 # -----------------------------
 # خروج
 # -----------------------------
+app = Flask(name)
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
