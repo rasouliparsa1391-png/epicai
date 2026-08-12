@@ -1,3 +1,18 @@
+from flask import Flask, request, jsonify, render_template, session
+from flask_cors import CORS
+from dotenv import load_dotenv
+from openai import OpenAI
+from werkzeug.security import generate_password_hash, check_password_hash
+import psycopg2
+import os
+
+load_dotenv()
+
+app = Flask(name)
+
+app.secret_key = os.getenv("SECRET_KEY", "change-this-secret-key")
+
+CORS(app, supports_credentials=True)
 def init_db():
     try:
         conn = get_db_connection()
@@ -24,7 +39,7 @@ def init_db():
 # -----------------------------
 # خروج
 # -----------------------------
-app = Flask(name)
+app = Flask(__name__)
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
