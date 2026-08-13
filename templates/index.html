@@ -291,7 +291,40 @@
       </div>
       <div class="header-star">✨</div>
     </header>
+<div id="authBox" style="
+padding:20px;
+text-align:center;
+background:white;
+border-radius:20px;
+margin:15px;
+box-shadow:0 5px 20px #ddd;
+">
 
+<h2>🔐 ورود به EpicAI</h2>
+
+<input id="email" type="email" placeholder="ایمیل"
+style="padding:12px;width:90%;margin:5px;border-radius:10px;border:1px solid #ddd;">
+
+<br>
+
+<input id="password" type="password" placeholder="رمز عبور"
+style="padding:12px;width:90%;margin:5px;border-radius:10px;border:1px solid #ddd;">
+
+<br>
+
+<button onclick="register()" 
+style="padding:10px 20px;margin:5px;border-radius:10px;">
+ثبت نام
+</button>
+
+<button onclick="login()" 
+style="padding:10px 20px;margin:5px;border-radius:10px;">
+ورود
+</button>
+
+<p id="authMessage"></p>
+
+</div>
     <main class="chat" id="chat">
       <div class="message ai-message">
         <div class="avatar ai-avatar">🤖</div>
@@ -400,6 +433,62 @@
       input.style.height = "auto";
       input.style.height = Math.min(input.scrollHeight, 110) + "px";
     });
+async function register(){
+
+const email=document.getElementById("email").value;
+const password=document.getElementById("password").value;
+
+
+const res=await fetch("/register",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+email:email,
+password:password
+})
+});
+
+
+const data=await res.json();
+
+document.getElementById("authMessage").innerText=data.message;
+
+}
+
+
+
+async function login(){
+
+const email=document.getElementById("email").value;
+const password=document.getElementById("password").value;
+
+
+const res=await fetch("/login",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+email:email,
+password:password
+})
+});
+
+
+const data=await res.json();
+
+document.getElementById("authMessage").innerText=data.message;
+
+
+if(data.success){
+
+document.getElementById("authBox").style.display="none";
+
+}
+
+}
   </script>
 </body>
 </html>
