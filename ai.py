@@ -6,6 +6,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta
 import psycopg2
 import os
+import uuid
+from pathlib import Path
 
 load_dotenv()
 
@@ -22,6 +24,30 @@ app.config.update(
 )
 
 CORS(app, supports_credentials=True)
+
+
+# -----------------------------
+# Temporary image storage
+# -----------------------------
+TEMP_IMAGE_DIR = Path(os.getenv("TEMP_IMAGE_DIR", "static/generated"))
+TEMP_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Images are intentionally NOT stored in PostgreSQL.
+# Old temporary files are removed automatically.
+IMAGE_MAX_AGE_SECONDS = int(os.getenv("IMAGE_MAX_AGE_SECONDS", "3600"))
+
+
+def cleanup_old_images():
+    """Remove generated images older than IMAGE_MAX_AGE_SECONDS."""
+    import time
+
+    now = time.time()
+    for file_path in TEMP_IMAGE_DIR.iterdir():
+        try:
+            if file_path.is_file() and now - file_path.stat().st_mtime > IMAGE_MAX_AGE_SECONDS:
+                file_path.unlink(missing_ok=True)
+        except Exception as e:
+            print("Image cleanup error:", e)
 
 # EpicAI / GapGPT API
 client = OpenAI(
@@ -431,8 +457,109 @@ def chat():
         }), 500
 
 
+
+
+# -----------------------------
+# GapGPT Image API test
+# -----------------------------
+
+def test_gapgpt_image_api():
+    """
+    Safe startup test:
+    - Uses the existing GAPGPT_API_KEY and base URL.
+    - Does NOT expose the API key.
+    - Does NOT save anything to PostgreSQL.
+    - Does NOT generate/save a real image yet.
+    """
+    try:
+        if not os.getenv("GAPGPT_API_KEY"):
+            print("IMAGE TEST: GAPGPT_API_KEY is not configured.")
+            return
+
+        test_client = OpenAI(
+            api_key=os.getenv("GAPGPT_API_KEY"),
+            base_url="https://api.gapgpt.app/v1"
+        )
+
+        print("IMAGE TEST: checking GapGPT API/model access...")
+
+        models = test_client.models.list()
+
+        model_ids = []
+        for model in getattr(models, "data", []) or []:
+            model_id = getattr(model, "id", None)
+            if model_id:
+                model_ids.append(model_id)
+
+        print("IMAGE TEST: API connection OK.")
+        print("IMAGE TEST: available model IDs:")
+        print(model_ids)
+
+        image_models = [
+            m for m in model_ids
+            if any(word in m.lower() for word in ["image", "img", "dall", "flux", "sd", "gemini"])
+        ]
+
+        if image_models:
+            print("IMAGE TEST: possible image-capable models found:")
+            print(image_models)
+        else:
+            print("IMAGE TEST: no obvious image model found in models.list().")
+
+    except Exception as e:
+        print("IMAGE TEST ERROR:", type(e).__name__, str(e))
+
+
+# -----------------------------
+# Image generation
+# -----------------------------
+
+@app.route("/generate-image", methods=["POST"])
+def generate_image():
+    if "user_id" not in session:
+        return jsonify({
+            "success": False,
+            "message": "🔐 برای ساخت تصویر ابتدا وارد حساب شوید."
+        }), 401
+
+    try:
+        data = request.get_json() or {}
+        prompt = data.get("prompt", "").strip()
+
+        if not prompt:
+            return jsonify({
+                "success": False,
+                "message": "لطفاً توضیح تصویر را وارد کنید."
+            }), 400
+
+        # Clean old temporary files before creating a new one.
+        cleanup_old_images()
+
+        # NOTE:
+        # The current uploaded backend only exposes the chat client/API.
+        # The actual image-generation API/model must be selected before
+        # sending the generation request.
+        #
+        # This endpoint is therefore intentionally prepared but does not
+        # pretend that the current chat API can generate images.
+
+        return jsonify({
+            "success": False,
+            "message": "موتور تولید تصویر هنوز برای EpicAI تنظیم نشده است.",
+            "prompt": prompt
+        }), 501
+
+    except Exception as e:
+        print("Image Generation Error:", e)
+        return jsonify({
+            "success": False,
+            "message": "❌ خطا در بخش عکس‌سازی."
+        }), 500
+
+
 # Create database tables on startup
 init_db()
+test_gapgpt_image_api()
 
 
 if __name__ == "__main__":
