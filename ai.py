@@ -61,7 +61,7 @@ image_client = OpenAI(
     base_url="https://api.avalai.ir/v1"
 )
 
-IMAGE_MODEL = "flux-1.1-pro"
+IMAGE_MODEL = "gpt-image-1"
 
 # -----------------------------
 # Database
