@@ -59,6 +59,12 @@ display:inline-block;width:8px;height:8px;margin-left:5px;
 border-radius:50%;background:#7cffb2;box-shadow:0 0 12px #7cffb2
 }
 .header-actions{display:flex;align-items:center;gap:10px}
+.image-mode-btn{
+border:0;border-radius:12px;padding:9px 12px;cursor:pointer;
+background:rgba(255,255,255,.18);color:#fff;font-family:inherit;
+font-size:12px;font-weight:700
+}
+.image-mode-btn:hover{background:rgba(255,255,255,.28)}
 .header-star{font-size:25px}
 .user-info{font-size:12px;opacity:.95}
 .logout{
@@ -143,6 +149,43 @@ font-size:21px;transition:.2s
 .send:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,110,255,.30)}
 .footer{margin-top:7px;text-align:center;color:#8ba4bb;font-size:10px}
 
+.image-panel{
+padding:12px 0 4px;
+}
+.image-box{
+display:flex;align-items:flex-end;gap:10px;padding:7px 8px 7px 12px;
+background:#fff;border:2px solid #dcecff;border-radius:19px;
+}
+.image-box textarea{
+min-height:44px;max-height:110px;
+}
+.generate-image-btn{
+width:52px;height:50px;border:0;border-radius:15px;cursor:pointer;
+color:#fff;background:linear-gradient(135deg,#7b2cff,#d13cff);
+font-size:20px;transition:.2s
+}
+.generate-image-btn:hover{
+transform:translateY(-2px);
+box-shadow:0 8px 25px rgba(123,44,255,.25)
+}
+.mode-switch{
+display:flex;gap:8px;margin-bottom:8px
+}
+.mode-btn{
+border:1px solid #dcecff;background:#fff;color:#58728b;
+border-radius:10px;padding:7px 12px;cursor:pointer;font-family:inherit;
+}
+.mode-btn.active{
+background:#0878ff;color:#fff;border-color:#0878ff;
+}
+.generated-image{
+display:block;max-width:100%;border-radius:16px;margin-top:10px;
+box-shadow:0 8px 30px rgba(0,80,180,.15)
+}
+.image-caption{
+font-size:13px;color:#55718b;margin-top:8px
+}
+
 .hidden{display:none!important}
 
 @media(max-width:650px){
@@ -174,6 +217,7 @@ body{padding:0}
 <div class="header-actions">
 <span class="user-info" id="userInfo"></span>
 <button class="logout hidden" id="logoutBtn">خروج</button>
+<button class="image-mode-btn" id="headerImageBtn" type="button">🎨 تصویر</button>
 <div class="header-star">✨</div>
 </div>
 </header>
@@ -212,7 +256,21 @@ body{padding:0}
 
 
 <section class="input-area">
-<div class="input-box">
+
+<div class="mode-switch">
+<button id="chatModeBtn" class="mode-btn active" type="button">💬 چت</button>
+<button id="imageModeBtn" class="mode-btn" type="button">🎨 ساخت تصویر</button>
+</div>
+
+<div id="imagePanel" class="image-panel hidden">
+<div class="image-box">
+<textarea id="imagePrompt" rows="1" placeholder="توضیح تصویری که می‌خوای بسازم..."></textarea>
+<button class="generate-image-btn" id="generateImageBtn" type="button">🎨</button>
+</div>
+<div class="footer">ساخت تصویر با FLUX • EpicAI.ir</div>
+</div>
+
+<div id="chatInputBox" class="input-box">
 <textarea id="messageInput" rows="1" placeholder="پیامت رو برای EpicAI بنویس..."></textarea>
 <button class="send" id="sendBtn" type="button">➤</button>
 </div>
@@ -275,6 +333,89 @@ addMessage(msg.content,msg.role==="user"?"user":"ai");
 }
 }catch(e){
 console.error("History Error:",e);
+}
+}
+
+
+const imagePrompt=document.getElementById("imagePrompt");
+const imageModeBtn=document.getElementById("imageModeBtn");
+const chatModeBtn=document.getElementById("chatModeBtn");
+const imagePanel=document.getElementById("imagePanel");
+const chatInputBox=document.getElementById("chatInputBox");
+const generateImageBtn=document.getElementById("generateImageBtn");
+const headerImageBtn=document.getElementById("headerImageBtn");
+
+function setMode(mode){
+if(mode==="image"){
+imagePanel.classList.remove("hidden");
+chatInputBox.classList.add("hidden");
+imageModeBtn.classList.add("active");
+chatModeBtn.classList.remove("active");
+imagePrompt.focus();
+}else{
+imagePanel.classList.add("hidden");
+chatInputBox.classList.remove("hidden");
+imageModeBtn.classList.remove("active");
+chatModeBtn.classList.add("active");
+input.focus();
+}
+}
+
+function addGeneratedImage(imageUrl,prompt){
+const message=document.createElement("div");
+message.className="message ai-message";
+
+message.innerHTML=`
+<div class="avatar ai-avatar">🎨</div>
+<div class="bubble">
+<b>تصویر آماده شد! 🎉</b>
+<div class="image-caption">${escapeHtml(prompt)}</div>
+<img class="generated-image" src="${escapeHtml(imageUrl)}" alt="تصویر ساخته شده توسط EpicAI">
+</div>
+`;
+
+chat.appendChild(message);
+chat.scrollTop=chat.scrollHeight;
+}
+
+async function generateImage(){
+const prompt=imagePrompt.value.trim();
+
+if(!prompt)return;
+
+addMessage("🎨 در حال ساخت تصویر... لطفاً کمی صبر کن.","ai");
+
+const messages=chat.querySelectorAll(".message");
+const loadingMessage=messages[messages.length-1];
+
+generateImageBtn.disabled=true;
+
+try{
+const response=await fetch("/generate-image",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+credentials:"include",
+body:JSON.stringify({prompt})
+});
+
+const data=await response.json();
+
+loadingMessage.remove();
+
+if(!response.ok || !data.success){
+throw new Error(data.message||"خطا در ساخت تصویر");
+}
+
+addGeneratedImage(data.image_url,prompt);
+imagePrompt.value="";
+imagePrompt.style.height="44px";
+
+}catch(error){
+console.error("Image Generation Error:",error);
+loadingMessage.remove();
+addMessage("❌ "+(error.message||"خطا در ساخت تصویر."),"ai");
+}finally{
+generateImageBtn.disabled=false;
 }
 }
 
@@ -428,6 +569,23 @@ document.getElementById("registerBtn").addEventListener("click",register);
 document.getElementById("loginBtn").addEventListener("click",login);
 logoutBtn.addEventListener("click",logout);
 sendBtn.addEventListener("click",sendMessage);
+
+imageModeBtn.addEventListener("click",()=>setMode("image"));
+chatModeBtn.addEventListener("click",()=>setMode("chat"));
+headerImageBtn.addEventListener("click",()=>setMode("image"));
+generateImageBtn.addEventListener("click",generateImage);
+
+imagePrompt.addEventListener("keydown",e=>{
+if(e.key==="Enter"&&!e.shiftKey){
+e.preventDefault();
+generateImage();
+}
+});
+
+imagePrompt.addEventListener("input",()=>{
+imagePrompt.style.height="auto";
+imagePrompt.style.height=Math.min(imagePrompt.scrollHeight,110)+"px";
+});
 
 input.addEventListener("keydown",e=>{
 if(e.key==="Enter"&&!e.shiftKey){
