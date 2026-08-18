@@ -527,11 +527,14 @@ def test_gapgpt_image_api():
 
 @app.route("/generate-image", methods=["POST"])
 def generate_image():
+    # فقط کاربران واردشده
     if "user_id" not in session:
         return jsonify({
             "success": False,
             "message": "🔐 برای ساخت تصویر ابتدا وارد حساب شوید."
         }), 401
+
+    user_id = session["user_id"]
 
     try:
         data = request.get_json() or {}
@@ -549,39 +552,121 @@ def generate_image():
                 "message": "کلید AvalAI تنظیم نشده است."
             }), 500
 
-        cleanup_old_images()
+        # -----------------------------
+        # Check daily image limit
+        # Maximum: 2 images per user per day
+        # -----------------------------
 
-        response = image_client.with_options(timeout=180).images.generate(
-    model=IMAGE_MODEL,
-    prompt=prompt,
-    size="1024x1024",
-    n=1,
-    response_format="b64_json"
-)
+        conn = None
 
-        image_data = response.data[0].b64_json
+        try:
+            conn = get_db_connection()
+            conn.autocommit = False
 
-        if not image_data:
+            with conn.cursor() as cur:
+
+                # جلوگیری از درخواست همزمان برای یک کاربر
+                cur.execute(
+                    "SELECT pg_advisory_xact_lock(%s)",
+                    (int(user_id),)
+                )
+
+                cur.execute(
+                    """
+                    SELECT image_count
+                    FROM public.image_usage
+                    WHERE user_id = %s
+                      AND usage_date = CURRENT_DATE
+                    FOR UPDATE
+                    """,
+                    (user_id,)
+                )
+
+                row = cur.fetchone()
+
+                current_count = row[0] if row else 0
+
+                # حداکثر 2 تصویر در روز
+                if current_count >= 2:
+                    conn.rollback()
+
+                    return jsonify({
+                        "success": False,
+                        "message": "🚫 سهمیه امروز شما تمام شده است. فردا دوباره ۲ تصویر دریافت می‌کنید.",
+                        "remaining": 0
+                    }), 429
+
+            # هنوز سهمیه مصرف نشده؛ API را صدا می‌زنیم
+            cleanup_old_images()
+
+            response = image_client.with_options(
+                timeout=180
+            ).images.generate(
+                model=IMAGE_MODEL,
+                prompt=prompt,
+                size="1024x1024",
+                n=1,
+                response_format="b64_json"
+            )
+
+            image_data = response.data[0].b64_json
+
+            if not image_data:
+                conn.rollback()
+
+                return jsonify({
+                    "success": False,
+                    "message": "تصویری از موتور دریافت نشد."
+                }), 502
+
+            image_bytes = base64.b64decode(image_data)
+
+            filename = f"{uuid.uuid4().hex}.png"
+            file_path = TEMP_IMAGE_DIR / filename
+
+            with open(file_path, "wb") as f:
+                f.write(image_bytes)
+
+            # -----------------------------
+            # Count successful generation
+            # -----------------------------
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO public.image_usage
+                        (user_id, usage_date, image_count)
+                    VALUES
+                        (%s, CURRENT_DATE, 1)
+                    ON CONFLICT (user_id, usage_date)
+                    DO UPDATE SET
+                        image_count = public.image_usage.image_count + 1
+                    RETURNING image_count
+                    """,
+                    (user_id,)
+                )
+
+                new_count = cur.fetchone()[0]
+
+            conn.commit()
+
+            image_url = f"/static/generated/{filename}"
+
             return jsonify({
-                "success": False,
-                "message": "تصویری از موتور دریافت نشد."
-            }), 502
+                "success": True,
+                "message": "تصویر با موفقیت ساخته شد.",
+                "image_url": image_url,
+                "remaining": max(0, 2 - new_count)
+            })
 
-        image_bytes = base64.b64decode(image_data)
+        except Exception:
+            if conn:
+                conn.rollback()
+            raise
 
-        filename = f"{uuid.uuid4().hex}.png"
-        file_path = TEMP_IMAGE_DIR / filename
-
-        with open(file_path, "wb") as f:
-            f.write(image_bytes)
-
-        image_url = f"/static/generated/{filename}"
-
-        return jsonify({
-            "success": True,
-            "message": "تصویر با موفقیت ساخته شد.",
-            "image_url": image_url
-        })
+        finally:
+            if conn:
+                conn.close()
 
     except Exception as e:
         print("Image Generation Error:", repr(e))
