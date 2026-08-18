@@ -539,38 +539,50 @@ def generate_image():
                 "message": "لطفاً توضیح تصویر را وارد کنید."
             }), 400
 
-        # Clean old temporary files before creating a new one.
+        if not os.getenv("AVALAI_API_KEY"):
+            return jsonify({
+                "success": False,
+                "message": "کلید AvalAI تنظیم نشده است."
+            }), 500
+
         cleanup_old_images()
 
-        # NOTE:
-        # The current uploaded backend only exposes the chat client/API.
-        # The actual image-generation API/model must be selected before
-        # sending the generation request.
-        #
-        # This endpoint is therefore intentionally prepared but does not
-        # pretend that the current chat API can generate images.
+        response = image_client.images.generate(
+            model=IMAGE_MODEL,
+            prompt=prompt,
+            size="1024x1024",
+            n=1,
+            response_format="b64_json"
+        )
+
+        image_data = response.data[0].b64_json
+
+        if not image_data:
+            return jsonify({
+                "success": False,
+                "message": "تصویری از موتور دریافت نشد."
+            }), 502
+
+        image_bytes = base64.b64decode(image_data)
+
+        filename = f"{uuid.uuid4().hex}.png"
+        file_path = TEMP_IMAGE_DIR / filename
+
+        with open(file_path, "wb") as f:
+            f.write(image_bytes)
+
+        image_url = f"/static/generated/{filename}"
 
         return jsonify({
-            "success": False,
-            "message": "موتور تولید تصویر هنوز برای EpicAI تنظیم نشده است.",
-            "prompt": prompt
-        }), 501
+            "success": True,
+            "message": "تصویر با موفقیت ساخته شد.",
+            "image_url": image_url
+        })
 
     except Exception as e:
-        print("Image Generation Error:", e)
+        print("Image Generation Error:", repr(e))
+
         return jsonify({
             "success": False,
-            "message": "❌ خطا در بخش عکس‌سازی."
+            "message": "❌ ساخت تصویر با خطا مواجه شد."
         }), 500
-
-
-# Create database tables on startup
-init_db()
-test_gapgpt_image_api()
-
-
-if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000))
-    )
