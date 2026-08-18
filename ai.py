@@ -5,6 +5,7 @@ from openai import OpenAI
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta
 import psycopg2
+import base64
 import os
 import uuid
 from pathlib import Path
@@ -54,7 +55,13 @@ client = OpenAI(
     api_key=os.getenv("GAPGPT_API_KEY"),
     base_url="https://api.gapgpt.app/v1"
 )
+# AvalAI Image API
+image_client = OpenAI(
+    api_key=os.getenv("AVALAI_API_KEY"),
+    base_url="https://api.avalai.ir/v1"
+)
 
+IMAGE_MODEL = "flux-1.1-pro"
 
 # -----------------------------
 # Database
