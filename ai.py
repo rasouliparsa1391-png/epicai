@@ -7,6 +7,7 @@ from datetime import timedelta
 import psycopg2
 import base64
 import os
+import psycopg2
 import uuid
 from pathlib import Path
 
@@ -118,6 +119,9 @@ def init_db():
 # -----------------------------
 # Main page
 # -----------------------------
+
+def get_db_connection():
+    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 @app.route("/")
 def index():
