@@ -547,13 +547,13 @@ def generate_image():
 
         cleanup_old_images()
 
-        response = image_client.images.generate(
-            model=IMAGE_MODEL,
-            prompt=prompt,
-            size="1024x1024",
-            n=1,
-            response_format="b64_json"
-        )
+        response = image_client.with_options(timeout=180).images.generate(
+    model=IMAGE_MODEL,
+    prompt=prompt,
+    size="1024x1024",
+    n=1,
+    response_format="b64_json"
+)
 
         image_data = response.data[0].b64_json
 
