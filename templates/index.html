@@ -185,7 +185,133 @@ box-shadow:0 8px 30px rgba(0,80,180,.15)
 .image-caption{
 font-size:13px;color:#55718b;margin-top:8px
 }
+.about-btn{
+  border:0;
+  border-radius:12px;
+  padding:9px 12px;
+  cursor:pointer;
+  background:rgba(255,255,255,.18);
+  color:#fff;
+  font-family:inherit;
+  font-size:12px;
+  font-weight:700;
+}
 
+.about-btn:hover{
+  background:rgba(255,255,255,.28);
+}
+
+.about-modal{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(5,25,50,.45);
+  backdrop-filter:blur(8px);
+}
+
+.about-modal.hidden{
+  display:none!important;
+}
+
+.about-card{
+  position:relative;
+  width:min(100%,480px);
+  padding:30px;
+  border-radius:25px;
+  background:rgba(255,255,255,.97);
+  box-shadow:0 25px 80px rgba(0,60,130,.3);
+  text-align:center;
+  color:#102a43;
+  animation:aboutShow .25s ease;
+}
+
+@keyframes aboutShow{
+  from{
+    opacity:0;
+    transform:translateY(15px) scale(.97);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+
+.about-close{
+  position:absolute;
+  top:12px;
+  left:14px;
+  width:35px;
+  height:35px;
+  border:0;
+  border-radius:50%;
+  background:#eef7ff;
+  color:#0878ff;
+  font-size:24px;
+  cursor:pointer;
+}
+
+.about-icon{
+  width:65px;
+  height:65px;
+  margin:0 auto 15px;
+  display:grid;
+  place-items:center;
+  border-radius:20px;
+  background:linear-gradient(135deg,#006eff,#00b8ff);
+  color:#fff;
+  font-size:30px;
+  box-shadow:0 10px 30px rgba(0,110,255,.25);
+}
+
+.about-card h2{
+  margin-bottom:12px;
+  color:#0878ff;
+}
+
+.about-card p{
+  line-height:1.9;
+  font-size:14px;
+}
+
+.about-contact{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin-top:20px;
+}
+
+.about-contact>div{
+  padding:13px;
+  border-radius:14px;
+  background:#f3f9ff;
+  text-align:right;
+}
+
+.about-contact b{
+  display:block;
+  margin-bottom:5px;
+}
+
+.about-contact a{
+  color:#0878ff;
+  text-decoration:none;
+  direction:ltr;
+  display:inline-block;
+}
+
+.about-contact a:hover{
+  text-decoration:underline;
+}
+
+.about-footer{
+  margin-top:20px;
+  color:#7892a9;
+  font-size:11px!important;
+}
 .hidden{display:none!important}
 
 @media(max-width:650px){
@@ -218,7 +344,10 @@ body{padding:0}
 <span class="user-info" id="userInfo"></span>
 <button class="logout hidden" id="logoutBtn">خروج</button>
 <button class="image-mode-btn" id="headerImageBtn" type="button">🎨 تصویر</button>
-<div class="header-star">✨</div>
+<button class="about-btn" id="aboutBtn" type="button">
+  ℹ️ درباره ما
+</button>
+  <div class="header-star">✨</div>
 </div>
 </header>
 
