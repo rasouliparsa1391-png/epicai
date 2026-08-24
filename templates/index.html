@@ -764,7 +764,23 @@ input.addEventListener("input",()=>{
 input.style.height="auto";
 input.style.height=Math.min(input.scrollHeight,110)+"px";
 });
+const aboutBtn = document.getElementById("aboutBtn");
+const aboutModal = document.getElementById("aboutModal");
+const aboutClose = document.getElementById("aboutClose");
 
+aboutBtn.addEventListener("click", () => {
+  aboutModal.classList.remove("hidden");
+});
+
+aboutClose.addEventListener("click", () => {
+  aboutModal.classList.add("hidden");
+});
+
+aboutModal.addEventListener("click", (e) => {
+  if (e.target === aboutModal) {
+    aboutModal.classList.add("hidden");
+  }
+});
 checkLogin();
 </script>
 
