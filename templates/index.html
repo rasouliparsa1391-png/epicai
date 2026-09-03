@@ -784,6 +784,14 @@ aboutModal.addEventListener("click", (e) => {
 });
 checkLogin();
 </script>
-
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/static/sw.js')
+        .then(reg => console.log('سرویس‌ورکر با موفقیت ثبت شد!', reg))
+        .catch(err => console.log('خطا در ثبت سرویس‌ورکر:', err));
+    });
+  }
+</script>
 </body>
 </html>
