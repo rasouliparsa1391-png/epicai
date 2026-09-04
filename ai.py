@@ -80,6 +80,9 @@ def init_db():
         conn = get_db_connection()
         cur = conn.cursor()
 
+        # -----------------------------
+        # Users
+        # -----------------------------
         cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -89,27 +92,126 @@ def init_db():
             )
         """)
 
+        # -----------------------------
+        # Chats
+        # -----------------------------
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS chats (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL
+                    REFERENCES users(id) ON DELETE CASCADE,
+                title VARCHAR(255) NOT NULL DEFAULT 'چت جدید',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # -----------------------------
+        # Messages
+        # -----------------------------
         cur.execute("""
             CREATE TABLE IF NOT EXISTS messages (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL
+                    REFERENCES users(id) ON DELETE CASCADE,
                 role VARCHAR(20) NOT NULL,
                 content TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
+        # برای دیتابیس‌های قدیمی
+        cur.execute("""
+            ALTER TABLE messages
+            ADD COLUMN IF NOT EXISTS chat_id INTEGER
+        """)
+
+        # Foreign key فقط اگر قبلاً وجود نداشته باشد
+        cur.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'messages_chat_id_fkey'
+                ) THEN
+                    ALTER TABLE messages
+                    ADD CONSTRAINT messages_chat_id_fkey
+                    FOREIGN KEY (chat_id)
+                    REFERENCES chats(id)
+                    ON DELETE CASCADE;
+                END IF;
+            END
+            $$;
+        """)
+
+        # -----------------------------
+        # Indexes
+        # -----------------------------
         cur.execute("""
             CREATE INDEX IF NOT EXISTS idx_messages_user_id
             ON messages(user_id)
         """)
 
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_chat_id
+            ON messages(chat_id)
+        """)
+
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_chats_user_id
+            ON chats(user_id)
+        """)
+
+        # -----------------------------
+        # انتقال پیام‌های قدیمی
+        # -----------------------------
+        cur.execute("""
+            SELECT DISTINCT user_id
+            FROM messages
+            WHERE chat_id IS NULL
+        """)
+
+        old_users = cur.fetchall()
+
+        for (user_id,) in old_users:
+
+            cur.execute("""
+                SELECT id
+                FROM chats
+                WHERE user_id = %s
+                ORDER BY created_at ASC
+                LIMIT 1
+            """, (user_id,))
+
+            existing_chat = cur.fetchone()
+
+            if existing_chat:
+                chat_id = existing_chat[0]
+            else:
+                cur.execute("""
+                    INSERT INTO chats (user_id, title)
+                    VALUES (%s, %s)
+                    RETURNING id
+                """, (user_id, "گفتگوی قبلی"))
+
+                chat_id = cur.fetchone()[0]
+
+            cur.execute("""
+                UPDATE messages
+                SET chat_id = %s
+                WHERE user_id = %s
+                  AND chat_id IS NULL
+            """, (chat_id, user_id))
+
         conn.commit()
+
         cur.close()
         conn.close()
 
         print("Database connected.")
         print("Users table ready.")
+        print("Chats table ready.")
         print("Messages table ready.")
 
     except Exception as e:
