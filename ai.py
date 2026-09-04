@@ -416,11 +416,12 @@ def me():
 
 
 # -----------------------------
-# Chat history
+# Chat system
 # -----------------------------
 
-@app.route("/history", methods=["GET"])
-def history():
+@app.route("/chats", methods=["GET"])
+def get_chats():
+
     if "user_id" not in session:
         return jsonify({
             "success": False,
@@ -431,15 +432,232 @@ def history():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        cur.execute(
-            """
+        cur.execute("""
+            SELECT id, title, created_at, updated_at
+            FROM chats
+            WHERE user_id = %s
+            ORDER BY updated_at DESC, id DESC
+        """, (session["user_id"],))
+
+        rows = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "chats": [
+                {
+                    "id": chat_id,
+                    "title": title,
+                    "created_at": created_at.isoformat() if created_at else None,
+                    "updated_at": updated_at.isoformat() if updated_at else None
+                }
+                for chat_id, title, created_at, updated_at in rows
+            ]
+        })
+
+    except Exception as e:
+        print("Chats Error:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "خطا در دریافت چت‌ها."
+        }), 500
+
+
+@app.route("/chats", methods=["POST"])
+def create_chat():
+
+    if "user_id" not in session:
+        return jsonify({
+            "success": False,
+            "message": "ابتدا وارد حساب شوید."
+        }), 401
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            INSERT INTO chats (user_id, title)
+            VALUES (%s, %s)
+            RETURNING id, title
+        """, (
+            session["user_id"],
+            "چت جدید"
+        ))
+
+        chat_id, title = cur.fetchone()
+
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "chat": {
+                "id": chat_id,
+                "title": title
+            }
+        })
+
+    except Exception as e:
+        print("Create Chat Error:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "خطا در ساخت چت جدید."
+        }), 500
+
+
+@app.route("/chats/<int:chat_id>", methods=["GET"])
+def get_chat(chat_id):
+
+    if "user_id" not in session:
+        return jsonify({
+            "success": False,
+            "message": "ابتدا وارد حساب شوید."
+        }), 401
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # مطمئن می‌شویم چت متعلق به همین کاربر است
+        cur.execute("""
+            SELECT id, title
+            FROM chats
+            WHERE id = %s
+              AND user_id = %s
+        """, (
+            chat_id,
+            session["user_id"]
+        ))
+
+        chat_row = cur.fetchone()
+
+        if not chat_row:
+            cur.close()
+            conn.close()
+
+            return jsonify({
+                "success": False,
+                "message": "چت پیدا نشد."
+            }), 404
+
+        cur.execute("""
+            SELECT id, role, content, created_at
+            FROM messages
+            WHERE chat_id = %s
+              AND user_id = %s
+            ORDER BY created_at ASC, id ASC
+        """, (
+            chat_id,
+            session["user_id"]
+        ))
+
+        rows = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "chat": {
+                "id": chat_row[0],
+                "title": chat_row[1]
+            },
+            "messages": [
+                {
+                    "id": message_id,
+                    "role": role,
+                    "content": content,
+                    "created_at": created_at.isoformat()
+                    if created_at else None
+                }
+                for message_id, role, content, created_at in rows
+            ]
+        })
+
+    except Exception as e:
+        print("Get Chat Error:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "خطا در دریافت گفتگو."
+        }), 500
+
+
+@app.route("/chats/<int:chat_id>", methods=["DELETE"])
+def delete_chat(chat_id):
+
+    if "user_id" not in session:
+        return jsonify({
+            "success": False,
+            "message": "ابتدا وارد حساب شوید."
+        }), 401
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            DELETE FROM chats
+            WHERE id = %s
+              AND user_id = %s
+        """, (
+            chat_id,
+            session["user_id"]
+        ))
+
+        deleted = cur.rowcount
+
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        if deleted == 0:
+            return jsonify({
+                "success": False,
+                "message": "چت پیدا نشد."
+            }), 404
+
+        return jsonify({
+            "success": True
+        })
+
+    except Exception as e:
+        print("Delete Chat Error:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "خطا در حذف چت."
+        }), 500
+
+
+# سازگاری با /history قدیمی
+@app.route("/history", methods=["GET"])
+def history():
+
+    if "user_id" not in session:
+        return jsonify({
+            "success": False,
+            "message": "ابتدا وارد حساب شوید."
+        }), 401
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
             SELECT role, content
             FROM messages
             WHERE user_id = %s
             ORDER BY created_at ASC, id ASC
-            """,
-            (session["user_id"],)
-        )
+        """, (session["user_id"],))
 
         rows = cur.fetchall()
 
@@ -464,11 +682,6 @@ def history():
             "success": False,
             "message": "خطا در دریافت تاریخچه چت."
         }), 500
-
-
-# -----------------------------
-# EpicAI Chat
-# -----------------------------
 
 @app.route("/chat", methods=["POST"])
 def chat():
